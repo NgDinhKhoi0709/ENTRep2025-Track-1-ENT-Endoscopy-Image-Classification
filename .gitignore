@@ -1,0 +1,35 @@
+env/
+ECHO is on.
+# Datasets and images
+dataset/**
+!dataset/train/data.json
+!dataset/train/cls.json
+!dataset/train/cls_train.json
+!dataset/augmented_merge_original/cls_train.json
+ECHO is on.
+# Weights and checkpoints
+weights/**
+SurgVLP/weights/**
+*.pth
+*.pt
+ECHO is on.
+# Notebooks checkpoints/cache
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/**
+ECHO is on.
+# OS / IDE cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+ECHO is on.
+# Logs and temp
+logs/**
+*.log
+tmp/**
+temp/**
+ECHO is on.
+# Build artifacts
+dist/**
+build/**
+*/__pycache__/**
