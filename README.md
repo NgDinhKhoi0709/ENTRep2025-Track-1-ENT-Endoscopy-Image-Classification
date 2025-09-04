@@ -1,87 +1,98 @@
-# ENTRep 2025 — Track 1: Phân loại ảnh nội soi ENT
+# ENTRep 2025 — Track 1: ENT Endoscopy Image Classification
 
-Kho lưu trữ này là lời giải của chúng tôi cho Track 1 (Image Classification) thuộc cuộc thi ENTRep tại ACM MM 2025. Nhiệm vụ: phân loại ảnh nội soi tai–mũi–họng (ENT) theo vùng giải phẫu và bệnh lý.
+This repository contains our solution for Track 1 (Image Classification) of the ENTRep Challenge at ACM MM 2025. The task is to classify ENT endoscopy images by anatomical region and pathology.
 
-Trang cuộc thi: [ENTRep Challenge — Track 1](https://aichallenge.hcmus.edu.vn/acm-mm-2025/entrep)
+Challenge page: <https://aichallenge.hcmus.edu.vn/acm-mm-2025/entrep>
 
-## Cách tiếp cận
+## Approach
 
-- Sử dụng dự án Surgical Vision-Language Pretraining (SurgVLP) làm backbone hình ảnh, cụ thể cấu hình `config_peskavlp` (PeskaVLP).
-- Đóng băng (freeze) encoder của PeskaVLP và thêm một classification head nhiều lớp nhẹ để học 7 lớp ENT:
+- We use the Surgical Vision-Language Pretraining project (SurgVLP) with the `config_peskavlp` configuration (PeskaVLP) as an image encoder.
+- The encoder is frozen and a lightweight multi-layer classification head is added for 7 ENT classes:
   - `nose-right`, `nose-left`, `ear-right`, `ear-left`, `vc-open`, `vc-closed`, `throat`.
-- Fine-tune chỉ classification head trên dữ liệu ENT của mình. Huấn luyện dùng Focal Loss, theo dõi Accuracy và Balanced Accuracy; lưu checkpoint tốt nhất theo từng chỉ số.
+- We fine-tune only the classification head on our ENT data. Training uses Focal Loss and tracks both Accuracy and Balanced Accuracy; best checkpoints are saved by each metric.
 
-Tham chiếu backbone: [CAMMA-public/SurgVLP](https://github.com/CAMMA-public/SurgVLP.git)
+Backbone reference: <https://github.com/CAMMA-public/SurgVLP.git>
 
-## Cấu trúc repo (các file chính)
+## Repository layout (key files)
 
-- `utils/make_cls_json.py`: Chuyển `data.json` (ban tổ chức) thành `cls.json` dạng ánh xạ `Path -> Classification`.
-- `utils/augment_dataset.py`: Tạo ảnh tăng cường (augmentation) và nhãn tương ứng.
-- `utils/merge_train_and_aug.py`: Gộp nhãn gốc và nhãn tăng cường, viết ra ánh xạ kết hợp để huấn luyện.
-- `utils/finetune.py`: Nạp PeskaVLP (config `config_peskavlp`), gắn classification head và huấn luyện trên tập kết hợp.
+- `utils/make_cls_json.py`: Convert `data.json` into `cls.json` mapping `Path -> Classification`.
+- `utils/augment_dataset.py`: Create augmented images and labels.
+- `utils/merge_train_and_aug.py`: Merge original and augmented label mappings into a combined mapping for training.
+- `utils/finetune.py`: Load PeskaVLP (`config_peskavlp`), attach the classification head, and train (optional local training).
+- `utils/peskavlp.ipynb`: Kaggle notebook for training with easy environment setup.
+- `utils/predict.py`: Local inference script to generate predictions from trained weights.
 
-## Chuẩn bị môi trường
+## Environment setup
 
-1) Clone SurgVLP vào thư mục gốc dự án này:
-
-```bash
-git clone https://github.com/CAMMA-public/SurgVLP.git ./SurgVLP
-```
-
-2) Thiết lập Python (ví dụ trên Windows CMD):
+### Local (Windows example)
 
 ```bash
 python -m venv .venv
 .\.venv\Scripts\activate
 python -m pip install -U pip
-pip install -r SurgVLP/requirements.txt
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 pip install scikit-learn pandas tqdm opencv-python pillow mmengine
+
+# Option A: clone the SurgVLP repo and use local configs/weights
+git clone https://github.com/CAMMA-public/SurgVLP.git ./SurgVLP
+pip install -r SurgVLP/requirements.txt
+
+# Option B: install SurgVLP directly (no clone needed)
+pip install git+https://github.com/CAMMA-public/SurgVLP.git
+pip install git+https://github.com/openai/CLIP.git
 ```
 
-3) Trọng số: đặt checkpoint PeskaVLP tại `SurgVLP/weights/PeskaVLP.pth`.
+Place the PeskaVLP checkpoint at `SurgVLP/weights/PeskaVLP.pth` (Option A) or at a path you pass to your scripts (Option B).
 
-## Chuẩn bị dữ liệu
+### Kaggle (as used in `utils/peskavlp.ipynb`)
 
-Kỳ vọng cấu trúc dữ liệu gốc của Track 1:
+Add cells with:
+
+```bash
+pip install -r requirements.txt
+pip install git+https://github.com/openai/CLIP.git
+pip install git+https://github.com/CAMMA-public/SurgVLP.git
+```
+
+## Data preparation
+
+Expected raw structure for Track 1:
 
 ```
 dataset/
   train/
-    images/            # ảnh gốc
-    data.json          # annotation từ BTC
+    images/            # original images
+    data.json          # annotations
 ```
 
-1) Tạo `cls_train.json` (ánh xạ `Path -> Classification`) từ `data.json`:
+### Option A — Build merged dataset yourself (local)
+
+1) Build `cls_train.json` from `data.json`:
 
 ```bash
 python utils/make_cls_json.py --input dataset/train/data.json --output dataset/train/cls_train.json
 ```
 
-2) Tăng cường dữ liệu. Mặc định sẽ ghi ảnh vào `dataset/augmented/` và nhãn vào `dataset/augmentation/cls_augmented.json`:
+2) Augment data (writes images to `dataset/augmented/` and labels to `dataset/augmentation/cls_augmented.json`):
 
 ```bash
 python utils/augment_dataset.py
 ```
 
-Chuyển file nhãn tăng cường về đường dẫn mà bước gộp mong đợi:
+Move the augmented labels to the expected path for merging:
 
 ```bash
 mkdir dataset\augmented 2>NUL
 move dataset\augmentation\cls_augmented.json dataset\augmented\cls_augmented.json
 ```
 
-Tuỳ chọn (tải sẵn augmented data):
-
-- Bạn có thể tải bộ dữ liệu đã tăng cường sẵn tại Kaggle: <https://www.kaggle.com/datasets/ngdihkhoi/augmented-data>. Khi đó, giải nén vào `dataset/augmented/` và đảm bảo có file nhãn `dataset/augmented/cls_augmented.json`, rồi chuyển sang bước gộp (bước 3).
-
-3) Gộp nhãn gốc và nhãn tăng cường, xuất ánh xạ kết hợp:
+3) Merge original and augmented mappings:
 
 ```bash
 python utils/merge_train_and_aug.py
 ```
 
-Đầu ra:
+This writes:
 
 ```
 dataset/
@@ -89,43 +100,69 @@ dataset/
     cls_train.json
 ```
 
-4) Chuẩn bị thư mục ảnh cho huấn luyện như `utils/finetune.py` mong đợi.
-
-`utils/finetune.py` đọc ảnh ở `dataset/augmented_merge_original/images`. Sao chép toàn bộ ảnh từ `dataset/augmented/` sang đó (bao gồm ảnh gốc đã copy vào `augmented` ở bước gộp):
+4) Prepare images for training as expected by `utils/finetune.py`:
 
 ```bash
 mkdir dataset\augmented_merge_original\images 2>NUL
 robocopy dataset\augmented dataset\augmented_merge_original\images /E
 ```
 
-## Tải dữ liệu/weights
+### Option B — Use the prebuilt merged dataset (Kaggle)
 
-- Dữ liệu gốc (Track 1): <https://aichallenge.hcmus.edu.vn/acm-mm-2025/entrep>
-- Dữ liệu augmented sẵn: <https://www.kaggle.com/datasets/ngdihkhoi/augmented-data>
-- Trọng số sau khi huấn luyện (weights): <https://drive.google.com/file/d/1IzhFz7lAtepLu8b_pqZ19VdwfXd3V19H/view?usp=sharing>
+- Kaggle dataset (already merged original + augmented): <https://www.kaggle.com/datasets/ngdihkhoi/augmented-data>
+- If you use this dataset, you can SKIP the merge step (`python utils/merge_train_and_aug.py`).
+- Place the provided merged `cls_train.json` and the images directly under `dataset/augmented_merge_original/` to match `utils/finetune.py` expectations:
+  - `dataset/augmented_merge_original/cls_train.json`
+  - `dataset/augmented_merge_original/images/` (all images)
 
-## Huấn luyện (fine-tune)
+## Training
 
-`utils/finetune.py` nạp PeskaVLP thông qua `SurgVLP/tests/config_peskavlp.py` và checkpoint tại `SurgVLP/weights/PeskaVLP.pth`.
+### On Kaggle
 
-Chạy huấn luyện:
+- Open `utils/peskavlp.ipynb`, run the installation cells as above, and train. The notebook uses the PeskaVLP backbone and fine-tunes the classification head on ENT data.
+
+### Locally (optional)
+
+- `utils/finetune.py` loads PeskaVLP via `SurgVLP/tests/config_peskavlp.py` and expects a checkpoint at `SurgVLP/weights/PeskaVLP.pth`.
 
 ```bash
 python utils/finetune.py
 ```
 
-Checkpoint sẽ được lưu ở `./weights/`:
+Checkpoints are saved under `./weights/`:
 
-- `best_balacc.pth` — balanced accuracy tốt nhất (trên toàn bộ tập train)
-- `best_acc.pth` — accuracy tốt nhất (trên toàn bộ tập train)
-- `last.pth` — epoch cuối
+- `best_balacc.pth` — best balanced accuracy
+- `best_acc.pth` — best overall accuracy
+- `last.pth` — last epoch
 
-Ghi chú:
+## Inference (local)
 
-- Mặc định encoder bị đóng băng; chỉ classification head được học. Có thể điều chỉnh `freeze_encoder` trong `EndoscopeClassifier` nếu muốn unfreeze.
-- Tiền xử lý ảnh dùng `preprocess` trả về từ `surgvlp.load()` để nhất quán với backbone.
+Use `utils/predict.py` to run predictions with a trained checkpoint:
 
-## Trích dẫn/Tham khảo
+```bash
+python utils/predict.py --weights ./weights/all_data_fl.pth \
+  --output_json ./results/predictions_all_data_fl.json \
+  --csv_path ./Dataset/PublicTest/cls.csv \
+  --image_dir ./Dataset/PublicTest/PublicTest
+
+# or to scan all images under image_dir (ignoring CSV):
+python utils/predict.py --weights ./weights/all_data_fl.pth \
+  --output_json ./results/predictions_all_data_fl.json \
+  --image_dir ./Dataset/PublicTest/PublicTest --test
+```
+
+## Downloads
+
+- Original dataset (Track 1): <https://aichallenge.hcmus.edu.vn/acm-mm-2025/entrep>
+- Prebuilt merged augmented dataset (Kaggle): <https://www.kaggle.com/datasets/ngdihkhoi/augmented-data>
+- Trained weights: <https://drive.google.com/file/d/1IzhFz7lAtepLu8b_pqZ19VdwfXd3V19H/view?usp=sharing>
+
+## Notes
+
+- The encoder is frozen by default; only the classification head is trained. You can change `freeze_encoder` in `EndoscopeClassifier` to unfreeze.
+- Input transforms use the `preprocess` returned by `surgvlp.load()` to stay consistent with the backbone.
+
+## References
 
 - ENTRep Challenge: <https://aichallenge.hcmus.edu.vn/acm-mm-2025/entrep>
 - SurgVLP: <https://github.com/CAMMA-public/SurgVLP.git>
