@@ -42,15 +42,9 @@ pip install git+https://github.com/openai/CLIP.git
 
 Place the PeskaVLP checkpoint at `SurgVLP/weights/PeskaVLP.pth`.
 
-### Kaggle (as used in `utils/peskavlp.ipynb`)
+### Kaggle (using `utils/peskavlp.ipynb`)
 
-Add cells with:
-
-```bash
-pip install -r requirements.txt
-pip install git+https://github.com/openai/CLIP.git
-pip install git+https://github.com/CAMMA-public/SurgVLP.git
-```
+The notebook already includes package installation cells. On Kaggle, simply update dataset paths if necessary and Run All. No extra setup is required beyond the notebook.
 
 ## Data preparation (recommended: Kaggle merged dataset)
 
