@@ -33,3 +33,4 @@ ECHO is on.
 dist/**
 build/**
 */__pycache__/**
+SurgVLP/
