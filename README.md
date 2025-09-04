@@ -33,16 +33,14 @@ python -m pip install -U pip
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 pip install scikit-learn pandas tqdm opencv-python pillow mmengine
 
-# Option A: clone the SurgVLP repo and use local configs/weights
+# Clone SurgVLP (required) and install it locally
 git clone https://github.com/CAMMA-public/SurgVLP.git ./SurgVLP
 pip install -r SurgVLP/requirements.txt
-
-# Option B: install SurgVLP directly (no clone needed)
-pip install git+https://github.com/CAMMA-public/SurgVLP.git
+pip install -e ./SurgVLP
 pip install git+https://github.com/openai/CLIP.git
 ```
 
-Place the PeskaVLP checkpoint at `SurgVLP/weights/PeskaVLP.pth` (Option A) or at a path you pass to your scripts (Option B).
+Place the PeskaVLP checkpoint at `SurgVLP/weights/PeskaVLP.pth`.
 
 ### Kaggle (as used in `utils/peskavlp.ipynb`)
 
@@ -54,63 +52,10 @@ pip install git+https://github.com/openai/CLIP.git
 pip install git+https://github.com/CAMMA-public/SurgVLP.git
 ```
 
-## Data preparation
-
-Expected raw structure for Track 1:
-
-```
-dataset/
-  train/
-    images/            # original images
-    data.json          # annotations
-```
-
-### Option A — Build merged dataset yourself (local)
-
-1) Build `cls_train.json` from `data.json`:
-
-```bash
-python utils/make_cls_json.py --input dataset/train/data.json --output dataset/train/cls_train.json
-```
-
-2) Augment data (writes images to `dataset/augmented/` and labels to `dataset/augmentation/cls_augmented.json`):
-
-```bash
-python utils/augment_dataset.py
-```
-
-Move the augmented labels to the expected path for merging:
-
-```bash
-mkdir dataset\augmented 2>NUL
-move dataset\augmentation\cls_augmented.json dataset\augmented\cls_augmented.json
-```
-
-3) Merge original and augmented mappings:
-
-```bash
-python utils/merge_train_and_aug.py
-```
-
-This writes:
-
-```
-dataset/
-  augmented_merge_original/
-    cls_train.json
-```
-
-4) Prepare images for training as expected by `utils/finetune.py`:
-
-```bash
-mkdir dataset\augmented_merge_original\images 2>NUL
-robocopy dataset\augmented dataset\augmented_merge_original\images /E
-```
-
-### Option B — Use the prebuilt merged dataset (Kaggle)
+## Data preparation (recommended: Kaggle merged dataset)
 
 - Kaggle dataset (already merged original + augmented): <https://www.kaggle.com/datasets/ngdihkhoi/augmented-data>
-- If you use this dataset, you can SKIP the merge step (`python utils/merge_train_and_aug.py`).
+- You can SKIP all local build/augment/merge steps.
 - Place the provided merged `cls_train.json` and the images directly under `dataset/augmented_merge_original/` to match `utils/finetune.py` expectations:
   - `dataset/augmented_merge_original/cls_train.json`
   - `dataset/augmented_merge_original/images/` (all images)
